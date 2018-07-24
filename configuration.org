@@ -50,7 +50,7 @@ Support for executing shell commands with sudo
 Use [[https://github.com/hrs/sensible-defaults.el][sensible-defaults.el]] for some basic settings.
 
 #+BEGIN_SRC emacs-lisp
-  (load-file "~/code/sensible-defaults.el/sensible-defaults.el")
+  (load-file "~/.emacs.d/sensible-defaults.el")
   (sensible-defaults/use-all-settings)
   (sensible-defaults/use-all-keybindings)
   (sensible-defaults/backup-to-temp-directory)
