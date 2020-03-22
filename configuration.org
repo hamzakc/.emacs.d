@@ -11,17 +11,50 @@
       (add-to-list 'auto-mode-alist (cons pattern mode))))
 #+END_SRC
 
-* Configure =use-package=
+#+BEGIN_SRC emacs-lisp
+  (if (not server-mode)
+    (server-start nil t))
+#+END_SRC
 
 #+BEGIN_SRC emacs-lisp
-  (unless (package-installed-p 'use-package)
-    (package-install 'use-package))
-
-  (setq use-package-verbose t)
-  (setq use-package-always-ensure t)
-
-  (require 'use-package)
+;; xterm with the resource ?.VT100.modifyOtherKeys: 1
+;; GNU Emacs >=24.4 sets xterm in this mode and define
+;; some of the escape sequences but not all of them.
+(defun character-apply-modifiers (c &rest modifiers)
+  "Apply modifiers to the character C.
+MODIFIERS must be a list of symbols amongst (meta control shift).
+Return an event vector."
+  (if (memq 'control modifiers) (setq c (if (or (and (<= ?@ c) (<= c ?_))
+                                                (and (<= ?a c) (<= c ?z)))
+                                            (logand c ?\x1f)
+                                          (logior (lsh 1 26) c))))
+  (if (memq 'meta modifiers) (setq c (logior (lsh 1 27) c)))
+  (if (memq 'shift modifiers) (setq c (logior (lsh 1 25) c)))
+  (vector c))
+(defun my-eval-after-load-xterm ()
+  (when (and (boundp 'xterm-extra-capabilities) (boundp 'xterm-function-map))
+    (let ((c 32))
+      (while (<= c 126)
+        (mapc (lambda (x)
+                (define-key xterm-function-map (format (car x) c)
+                  (apply 'character-apply-modifiers c (cdr x))))
+              '(;; with ?.VT100.formatOtherKeys: 0
+                ("\e\[27;3;%d~" meta)
+                ("\e\[27;5;%d~" control)
+                ("\e\[27;6;%d~" control shift)
+                ("\e\[27;7;%d~" control meta)
+                ("\e\[27;8;%d~" control meta shift)
+                ;; with ?.VT100.formatOtherKeys: 1
+                ("\e\[%d;3u" meta)
+                ("\e\[%d;5u" control)
+                ("\e\[%d;6u" control shift)
+                ("\e\[%d;7u" control meta)
+                ("\e\[%d;8u" control meta shift)))
+        (setq c (1+ c))))))
+(eval-after-load "xterm" '(my-eval-after-load-xterm))
 #+END_SRC
+
+* Configure =use-package=
 
 Always compile packages, and use the newest version available.
 
@@ -35,6 +68,36 @@ Support for executing shell commands with sudo
 
 #+BEGIN_SRC emacs-lisp
   (use-package sudo-ext)
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+  (use-package exec-path-from-shell)
+  (when (memq window-system '(mac ns x))
+    (exec-path-from-shell-initialize))
+#+END_SRC
+
+Keychain is a script that manages ssh-agent and gpg-agent.
+#+BEGIN_SRC emacs-lisp
+  (use-package keychain-environment)
+#+END_SRC
+
+Browse current file in github
+#+BEGIN_SRC emacs-lisp
+  (use-package browse-at-remote)
+  (global-set-key (kbd "C-c g g") 'browse-at-remote)
+#+END_SRC
+
+Allows you to save the current window state and return to it after you have entered full
+
+#+BEGIN_SRC emacs-lisp
+(when (fboundp 'winner-mode)
+      (winner-mode 1))
+#+END_SRC
+
+Shoe Emojis!!!
+#+BEGIN_SRC emacs-lisp
+  (use-package emojify)
+  (add-hook 'after-init-hook #'global-emojify-mode)
 #+END_SRC
 
 * Set personal information
@@ -96,14 +159,20 @@ Map 'jj' To get back to normal mode, using the key-chord package
   (key-chord-define evil-insert-state-map "jj" 'evil-normal-state)
   (key-chord-mode 1)
 #+END_SRC
-#
+
+#+BEGIN_SRC emacs-lisp
+(with-eval-after-load 'evil
+    (defalias #'forward-evil-word #'forward-evil-symbol)
+    ;; make evil-search-word look for symbol rather than word boundaries
+    (setq-default evil-symbol-word-search t))
+#+END_SRC
+
 * UI preferences
 
 Lets show the time in the spacebar
 #+BEGIN_SRC emacs-lisp
 (display-time-mode 1)
 #+END_SRC
-
 ** Tweak window chrome
 
 I don't usually use the menu or scroll bar, and they take up useful space.
@@ -144,26 +213,17 @@ side and font, though.
 
 #+BEGIN_SRC emacs-lisp
   (use-package solarized-theme)
-  (defun hrs/apply-solarized-theme ()
-    (setq solarized-use-variable-pitch nil)
-    (setq solarized-height-plus-1 1.0)
-    (setq solarized-height-plus-2 1.0)
-    (setq solarized-height-plus-3 1.0)
-    (setq solarized-height-plus-4 1.0)
-    (setq solarized-high-contrast-mode-line t)
-    (load-theme 'solarized-dark t))
-(setq x-underline-at-descent-line t)
-#+END_SRC
+  ;; Don't change size of org-mode headlines (but keep other size-changes)
+  (setq solarized-scale-org-headlines nil)
+  (setq solarized-use-variable-pitch nil)
+  (setq solarized-height-plus-1 1.0)
+  (setq solarized-height-plus-2 1.0)
+  (setq solarized-height-plus-3 1.0)
+  (setq solarized-height-plus-4 1.0)
+  (setq solarized-high-contrast-mode-line t)
+  (setq x-underline-at-descent-line t)
 
-If this code is being evaluated by =emacs --daemon=, ensure that each subsequent
-frame is themed appropriately.
-
-#+BEGIN_SRC emacs-lisp
-  (if (daemonp)
-      (add-hook 'after-make-frame-functions
-                (lambda (frame)
-                    (hrs/apply-solarized-theme)))
-    (hrs/apply-solarized-theme))
+  (load-theme 'solarized-dark t)
 #+END_SRC
 
 ** Disable visual bell
@@ -226,7 +286,6 @@ package.
   (diminish-minor-mode 'ruby-end 'ruby-end-mode)
   (diminish-minor-mode 'subword 'subword-mode)
   (diminish-minor-mode 'undo-tree 'undo-tree-mode)
-  (diminish-minor-mode 'yasnippet 'yas-minor-mode)
   (diminish-minor-mode 'wrap-region 'wrap-region-mode)
 
   (diminish-minor-mode 'paredit 'paredit-mode " π")
@@ -252,7 +311,6 @@ programming.
 ** Spaceline
 #+BEGIN_SRC emacs-lisp
 (use-package spaceline
-  :ensure t
   :config
   (require 'spaceline-config)
     (setq spaceline-buffer-encoding-abbrev-p nil)
@@ -266,7 +324,6 @@ programming.
 ** Battery
 #+BEGIN_SRC emacs-lisp
 (use-package fancy-battery
-  :ensure t
   :config
     (setq fancy-battery-show-percentage t)
     (setq battery-update-interval 15)
@@ -275,10 +332,8 @@ programming.
       (display-battery-mode)))
 #+END_SRC
 ** Relative Line Numbers
-
 #+BEGIN_SRC emacs-lisp
 (use-package linum-relative
-  :ensure t
   :config
     (setq linum-relative-current-symbol "")
     (add-hook 'prog-mode-hook 'linum-relative-mode))
@@ -286,7 +341,6 @@ programming.
 ** Helm
 #+BEGIN_SRC emacs-lisp
 (use-package helm
-  :ensure t
   :bind
   ("C-x C-f" . 'helm-find-files)
   ("C-x C-b" . 'helm-buffers-list)
@@ -330,19 +384,74 @@ Helm Occur
 ** Dashboard
 #+BEGIN_SRC emacs-lisp
 (use-package dashboard
-  :ensure t
   :config
     (dashboard-setup-startup-hook)
-    (setq dashboard-startup-banner "~/.emacs.d/img/dashLogo.png")
     (setq dashboard-items '((recents  . 5)
                             (projects . 5)))
     (setq dashboard-banner-logo-title ""))
+#+END_SRC
+** Golden Ratio
+#+BEGIN_SRC emacs-lisp
+  (use-package golden-ratio
+    :init
+    (setq golden-ratio-adjust-factor 1
+          golden-ratio-wide-adjust-factor 1)
+    :config
+    (progn
+      (golden-ratio-mode)
+      (dolist (f '(switch-window
+                   avy-pop-mark
+                   buf-move-left
+                   buf-move-right
+                   buf-move-up
+                   buf-move-down
+                   evil-avy-goto-word-or-subword-1
+                   evil-avy-goto-char
+                   evil-avy-goto-line
+                   evil-window-delete
+                   evil-window-split
+                   evil-window-vsplit
+                   evil-window-left
+                   evil-window-right
+                   evil-window-up
+                   evil-window-down
+                   evil-window-bottom-right
+                   evil-window-top-left
+                   evil-window-mru
+                   evil-window-next
+                   evil-window-prev
+                   evil-window-new
+                   evil-window-vnew
+                   evil-window-rotate-upwards
+                   evil-window-rotate-downwards
+                   evil-window-move-very-top
+                   evil-window-move-far-left
+                   evil-window-move-far-right
+                   evil-window-move-very-bottom
+                   quit-window
+                   select-window-0
+                   select-window-1
+                   select-window-2
+                   select-window-3
+                   select-window-4
+                   select-window-5
+                   select-window-6
+                   select-window-7
+                   select-window-8
+                   select-window-9
+                   windmove-left
+                   windmove-right
+                   windmove-up
+                   windmove-down))
+        (add-to-list 'golden-ratio-extra-commands f))))
+    (golden-ratio-mode 1)
 #+END_SRC
 * PROGRAMMING environments
 I like shallow indentation, but tabs are displayed as 8 characters by default.
 This reduces that.
 
 #+BEGIN_SRC emacs-lisp
+  (setq fill-column 80) ;; M-q should fill at 80 chars, not 75
   (setq-default tab-width 2)
 #+END_SRC
 
@@ -356,8 +465,8 @@ output.
 #+END_SRC
 ** flycheck
 #+BEGIN_SRC emacs-lisp
-(use-package flycheck
-  :ensure t)
+  (use-package flycheck)
+  (use-package flymake-eslint)
 #+END_SRC
 ** Projectile
 Projectile's default binding of =projectile-ag= to =C-c p s s= is clunky enough
@@ -365,18 +474,28 @@ that I rarely use it (and forget it when I need it). This binds the
 easier-to-type =C-c C-v= and =C-c v= to useful searches.
 
 #+BEGIN_SRC emacs-lisp
-	(use-package projectile)
-	(use-package projectile-rails)
-	(use-package helm-projectile)
-  (helm-projectile-on)
-	(setq projectile-completion-system 'helm)
-	(defun hrs/search-project-for-symbol-at-point ()
-		"Use `projectile-ag' to search the current project for `symbol-at-point'."
-		(Interactive)
-		(Projectile-Ack (Projectile-Symbol-At-Point)))
+;; set the PATH properly
+  (let* ((path (shell-command-to-string "/bin/bash -c 'source ~/.bash_profile && printf $PATH'")))
+    (setenv "PATH" path)
+    (mapc (lambda (p)
+	    (add-to-list 'exec-path p))
+	  (split-string path ":")))
+#+END_SRC
 
-	(global-set-key (kbd "C-c v") 'helm-projectile-ack)
-	(global-set-key (kbd "C-c C-v") 'hrs/search-project-for-symbol-at-point)
+#+BEGIN_SRC emacs-lisp
+  (use-package projectile)
+  ;;(use-package projectile-rails)
+  (use-package helm-projectile)
+  (helm-projectile-on)
+  (setq projectile-completion-system 'helm)
+  ;;(setq ack-executable "/usr/local/bin/ack")
+  (defun hrs/search-project-for-symbol-at-point ()
+    "Use `projectile-ag' to search the current project for `symbol-at-point'."
+    (Interactive)
+    (Projectile-Ack (Projectile-Symbol-At-Point)))
+
+  (global-set-key (kbd "C-c v") 'helm-projectile-ack)
+  (global-set-key (kbd "C-c C-v") 'hrs/search-project-for-symbol-at-point)
 #+END_SRC
 
 When I visit a project with =projectile-switch-project=, the default action is
@@ -428,7 +547,12 @@ Allow git commit messages to use the current emacs instance.
     (setq magit-push-always-verify nil)
     (setq git-commit-summary-max-length 50)
     (add-hook 'git-commit-mode-hook 'turn-on-flyspell)
-    (add-hook 'with-editor-mode-hook 'evil-insert-state))
+    (add-hook 'with-editor-mode-hook 'evil-insert-state)
+    (use-package magit-gh-pulls
+      :init
+      (add-hook 'magit-mode-hook 'turn-on-magit-gh-pulls))
+    :commands magit-status
+    :bind ("C-x g" . magit-status))
 #+END_SRC
 ** Auto complete
 #+BEGIN_SRC emacs-lisp
@@ -462,15 +586,20 @@ Indent everything by 2 spaces.
 
   (add-hook 'coffee-mode-hook
             (lambda ()
-              (yas-minor-mode 1)
               (setq coffee-tab-width 2)))
 #+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+  (use-package indium)
+#+END_SRC
+
 ** Ruby and Rspec
 
 Use rbenv to manage the Ruby version
+Commented out as using system ruby
 #+BEGIN_SRC emacs-lisp
-(use-package rbenv)
-(global-rbenv-mode)
+;(use-package rbenv)
+;(global-rbenv-mode)
 #+END_SRC
 
 Basic packages needed for Ruby / RSpec
@@ -513,7 +642,6 @@ There are a bunch of things I'd like to do when I open a Ruby buffer:
   (add-hook 'ruby-mode-hook
             (lambda ()
               (setq ruby-insert-encoding-magic-comment nil)
-              (yas-minor-mode)
               (rspec-mode)
               (flycheck-mode)
               (local-set-key "\r" 'newline-and-indent)
@@ -549,6 +677,29 @@ Syntax highlighting for Gherkin Syntax
 #+BEGIN_SRC emacs-lisp
   (use-package feature-mode)
 #+END_SRC
+** Common Lisp
+#+BEGIN_SRC emacs-lisp
+  (use-package ac-slime)
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+  (use-package slime
+      :init
+      (setq inferior-lisp-program "sbcl")
+      (slime-setup '(slime-fancy
+         slime-asdf
+    slime-banner)))
+#+END_SRC
+** PlantUML
+Quickly write UML documents using markup
+#+BEGIN_SRC emacs-lisp
+    (use-package plantuml-mode)
+  ;; Enable plantuml-mode for PlantUML files
+  (add-to-list 'auto-mode-alist '("\\.plantuml\\'" . plantuml-mode))
+  (add-to-list 'auto-mode-alist '("\\.puml\\'" . plantuml-mode))
+  (setq plantuml-jar-path (concat "/usr/share/java/plantuml/" "plantuml.jar"))
+#+END_SRC
+
 * Terminal
 
 I use =multi-term= to manage my shell sessions. It's bound to =C-c t=.
@@ -601,6 +752,11 @@ I add a bunch of hooks to =term-mode=:
 * Publishing and task management with Org-mode
 ** Display preferences
 
+Install the latest version of org
+#+BEGIN_SRC emacs-lisp
+  (use-package org)
+#+END_SRC
+
 I like to see an outline of pretty bullets instead of a list of asterisks.
 
 #+BEGIN_SRC emacs-lisp
@@ -647,59 +803,18 @@ Enable spell-checking in Org-mode.
 #+BEGIN_SRC emacs-lisp
   (add-hook 'org-mode-hook 'flyspell-mode)
 #+END_SRC
-** Hugo
-	 Create a new blog post with org mode headers
-	 Taken from http://schnuddelhuddel.de/creating-new-org-files-for-hugo/
-	 Hugo theme: https://themes.gohugo.io/cocoa-eh-hugo-theme/
-
-#+BEGIN_SRC emacs-lisp
-		(setq hugo-base-dir "~/workspace/hamza.khan-cheema.com/")
-
-		(defun today-is ()
-			(format-time-string "%Y-%m-%d-"))
-
-		(defun now-is ()
-		 (concat (format-time-string "%Y-%m-%dT%T")
-			 ((lambda (x) (concat (substring x 0 3) ":" (substring x 3 5)))
-			 (format-time-string "%z"))))
-
-		(defun org-hugo-new-post ()
-		"Creates a new org file in Hugo's content/post directory"
-		(interactive)
-		(let* ((title (read-from-minibuffer "Title: "))
-					 (filename (read-from-minibuffer "Filename: "
-						 (replace-regexp-in-string "-\\.org" ".org"
-										 (concat (downcase
-												(replace-regexp-in-string "[^a-z0-9]+" "-" title))
-											 ".org"))))
-		 (blogfile (concat "blog/" (today-is) filename))
-		 (url (concat (downcase
-						 (replace-regexp-in-string "[^a-z0-9]+" "-"
-							 title))))
-					 (path (concat hugo-base-dir "content/" blogfile)))
-
-			(if (file-exists-p path)
-					(message "File already exists!")
-				(message blogfile)
-				(switch-to-buffer (generate-new-buffer blogfile))
-				(insert "#+DATE: " (now-is))
-				(insert "\n#+TITLE: " title)
-				(insert "\n#+AUTHOR: Hamza")
-				;(insert "\n#+URL: /" url "/")
-				(insert "\n#+DESCRIPTION: \n#+TAGS:\n\n")
-				(org-mode)
-				(write-file path)
-				(goto-char (point-max)))))
-#+END_SRC
 ** Org defaults
 
 	 Add Line wrapping in org mode
 
 	 #+BEGIN_SRC emacs-lisp
-			(add-hook 'org-mode-hook
-				 '(lambda ()
-						(visual-line-mode 1)))
-		 (add-hook 'org-mode-hook 'org-indent-mode)
+     (add-hook 'org-mode-hook
+               '(lambda ()
+                  (visual-line-mode 1)))
+     ;; This line is mysteriously needed to get rid of this error:
+     ;; Error running timer ‘org-indent-initialize-agent’: (void-function org-time-add)
+     (org-reload)
+     (add-hook 'org-mode-hook 'org-indent-mode)
 	 #+END_SRC
 
    Associate files for org mode
@@ -736,7 +851,6 @@ Set the languages for babel languages
    (org . t)
    (python . t)
    (scheme . t)
-   (sed . t)
    (shell . t)
    (sqlite . t)
    (python . t)))
@@ -823,7 +937,6 @@ Add Journal entries using org-journal
 #+BEGIN_SRC emacs-lisp
   (use-package org-journal
     :init (setq org-journal-dir "~/Documents/org/journal/")
-    :ensure t
   )
 
   (defun org-journal-find-location ()
@@ -843,6 +956,24 @@ Add Journal entries using org-journal
                  "~/Documents/org/calendars/kc-cal.org"
                  "~/Documents/org/calendars/noths-cal.org"))
 	 #+END_SRC
+** org-roam
+A org clone of roam
+https://blog.jethro.dev/posts/introducing_org_roam/
+
+#+BEGIN_SRC emacs-lisp
+(use-package org-roam
+      :hook
+      (after-init . org-roam-mode)
+      :straight (:host github :repo "jethrokuan/org-roam")
+      :custom
+      (org-roam-directory "/home/hamza/Documents/org/")
+      :bind (:map org-roam-mode-map
+              (("C-c n l" . org-roam)
+               ("C-c n f" . org-roam-find-file)
+               ("C-c n g" . org-roam-show-graph))
+              :map org-mode-map
+              (("C-c n i" . org-roam-insert))))
+#+END_SRC
 * Editing Settings
 ** Mass editing of =grep= results
 
@@ -949,7 +1080,6 @@ makes that automatic.
 ** Switch Window
 #+BEGIN_SRC emacs-lisp
 (use-package switch-window
-  :ensure t
   :config
     (setq switch-window-input-style 'minibuffer)
     (setq switch-window-increase 4)
@@ -987,6 +1117,10 @@ Just a few handy functions.
   (global-set-key (kbd "C-w") 'backward-kill-word)
   (global-set-key (kbd "M-/") 'hippie-expand)
   (global-set-key (kbd "M-o") 'other-window)
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+  (global-unset-key (kbd "C-x m")) ; I don't use mail
 #+END_SRC
 
 Remap when working in terminal Emacs.
@@ -1035,7 +1169,6 @@ you can not move it efficiently. Every time you change buffers, the current posi
 
 #+BEGIN_SRC emacs-lisp
 (use-package beacon
-  :ensure t
   :config
     (beacon-mode 1))
 #+END_SRC
