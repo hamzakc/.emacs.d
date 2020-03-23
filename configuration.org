@@ -548,10 +548,6 @@ Allow git commit messages to use the current emacs instance.
     (setq git-commit-summary-max-length 50)
     (add-hook 'git-commit-mode-hook 'turn-on-flyspell)
     (add-hook 'with-editor-mode-hook 'evil-insert-state)
-    (use-package magit-gh-pulls
-      :init
-      (add-hook 'magit-mode-hook 'turn-on-magit-gh-pulls))
-    :commands magit-status
     :bind ("C-x g" . magit-status))
 #+END_SRC
 ** Auto complete
@@ -587,10 +583,6 @@ Indent everything by 2 spaces.
   (add-hook 'coffee-mode-hook
             (lambda ()
               (setq coffee-tab-width 2)))
-#+END_SRC
-
-#+BEGIN_SRC emacs-lisp
-  (use-package indium)
 #+END_SRC
 
 ** Ruby and Rspec
@@ -699,7 +691,22 @@ Quickly write UML documents using markup
   (add-to-list 'auto-mode-alist '("\\.puml\\'" . plantuml-mode))
   (setq plantuml-jar-path (concat "/usr/share/java/plantuml/" "plantuml.jar"))
 #+END_SRC
+** Elixir
 
+#+BEGIN_SRC emacs-lisp
+(use-package alchemist
+  :config
+  (add-hook 'elixir-mode-hook 'alchemist-mode))
+
+(use-package flycheck-elixir
+  :config
+  (add-hook 'elixir-mode-hook 'flycheck-mode))
+
+(use-package elixir-mode)
+
+(provide 'lang-elixir)
+
+#+END_SRC
 * Terminal
 
 I use =multi-term= to manage my shell sessions. It's bound to =C-c t=.
