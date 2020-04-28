@@ -94,7 +94,7 @@ Allows you to save the current window state and return to it after you have ente
       (winner-mode 1))
 #+END_SRC
 
-Shoe Emojis!!!
+Show Emojis!!! :)
 #+BEGIN_SRC emacs-lisp
   (use-package emojify)
   (add-hook 'after-init-hook #'global-emojify-mode)
@@ -206,26 +206,14 @@ Why not?
   (global-prettify-symbols-mode t)
 #+END_SRC
 
-** Custom solarized-dark theme
-
-I like the solarized-dark theme. I prefer keeping all the characters in the same
-side and font, though.
-
+** Nord-theme
 #+BEGIN_SRC emacs-lisp
-  (use-package solarized-theme)
-  ;; Don't change size of org-mode headlines (but keep other size-changes)
-  (setq solarized-scale-org-headlines nil)
-  (setq solarized-use-variable-pitch nil)
-  (setq solarized-height-plus-1 1.0)
-  (setq solarized-height-plus-2 1.0)
-  (setq solarized-height-plus-3 1.0)
-  (setq solarized-height-plus-4 1.0)
-  (setq solarized-high-contrast-mode-line t)
-  (setq x-underline-at-descent-line t)
-
-  (load-theme 'solarized-dark t)
+(use-package nord-theme
+  :init
+  (setq nord-theme t)
+  :config
+  (load-theme 'nord t))
 #+END_SRC
-
 ** Disable visual bell
 
 =sensible-defaults= replaces the audible bell with a visual one, but I really
@@ -548,8 +536,20 @@ Allow git commit messages to use the current emacs instance.
     (setq git-commit-summary-max-length 50)
     (add-hook 'git-commit-mode-hook 'turn-on-flyspell)
     (add-hook 'with-editor-mode-hook 'evil-insert-state)
-    :bind ("C-x g" . magit-status))
 #+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+    ;; If the branch has a jira ticket, also add that on the commit message
+
+    (add-hook 'git-commit-setup-hook
+        '(lambda ()
+            (let ((has-ticket-title (string-match "^[A-Z]+-[0-9]+"
+                                        (magit-get-current-branch)))
+                  (words (s-split-words (magit-get-current-branch))))
+              (if has-ticket-title
+                 (insert (upcase(format "[%s-%s] " (car words) (car (cdr words)))))))))
+#+END_SRC
+
 ** Auto complete
 #+BEGIN_SRC emacs-lisp
 (use-package auto-complete)
@@ -626,7 +626,7 @@ Enable binding.pry to work with RSpec
 There are a bunch of things I'd like to do when I open a Ruby buffer:
 
 - I don't want to insert an encoding comment.
-- I want to enable =yas=, =rspec=, =flycheck=, and =projectile-rails=.
+- I want to enable =yas=, =rspec=, =flycheck=
 - I'd like my RSpec tests to be run in a random order, and I'd like the output
   to be colored.
 
@@ -638,7 +638,7 @@ There are a bunch of things I'd like to do when I open a Ruby buffer:
               (flycheck-mode)
               (local-set-key "\r" 'newline-and-indent)
               (setq rspec-command-options "--color --order random")
-              (projectile-rails-mode)))
+              ))
 #+END_SRC
 
 I associate =ruby-mode= with Gemfiles, gemspecs, Rakefiles, and Vagrantfiles.
@@ -755,6 +755,20 @@ I add a bunch of hooks to =term-mode=:
               (define-key term-raw-map (kbd "<mouse-2>") 'hrs/term-paste)
               (define-key term-raw-map (kbd "M-o") 'other-window)
               (setq yas-dont-activate t)))
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp
+(defun ignore-changes-in-term-buffers ()
+  (add-hook 'after-change-functions
+            (lambda (a b c)
+              (set-buffer-modified-p nil))
+            nil
+            t))
+
+(add-hook 'term-mode-hook
+          'ignore-changes-in-term-buffers
+          nil
+          t)
 #+END_SRC
 * Publishing and task management with Org-mode
 ** Display preferences
@@ -1027,7 +1041,7 @@ Enable [[https://github.com/hrs/engine-mode][engine-mode]] and define a few usef
 #+BEGIN_SRC emacs-lisp
   (use-package engine-mode)
   (require 'engine-mode)
-  (setq engine/browser-function 'browse-url-chrome)
+  (setq engine/browser-function 'browse-url-firefox)
 
   (defengine duckduckgo
     "https://duckduckgo.com/?q=%s"
@@ -1175,7 +1189,4 @@ While changing buffers or workspaces, the first thing you do is look for your cu
 you can not move it efficiently. Every time you change buffers, the current position of your cursor will be briefly highlighted now.
 
 #+BEGIN_SRC emacs-lisp
-(use-package beacon
-  :config
-    (beacon-mode 1))
 #+END_SRC
