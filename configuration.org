@@ -987,7 +987,7 @@ https://blog.jethro.dev/posts/introducing_org_roam/
       (after-init . org-roam-mode)
       :straight (:host github :repo "jethrokuan/org-roam")
       :custom
-      (org-roam-directory "/home/hamza/Documents/org/")
+      (org-roam-directory "~/Documents/org/")
       :bind (:map org-roam-mode-map
               (("C-c n l" . org-roam)
                ("C-c n f" . org-roam-find-file)

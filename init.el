@@ -64,7 +64,7 @@
 	 (quote
 		("#dc322f" "#cb4b16" "#b58900" "#5b7300" "#b3c34d" "#0061a8" "#2aa198" "#d33682" "#6c71c4")))
  '(org-export-backends (quote (ascii html icalendar latex md confluence)))
- '(org-roam-directory "/home/hamza/Documents/org/")
+ '(org-roam-directory "~/Documents/org/")
  '(package-selected-packages
 	 (quote
 		(:straight emojify-mode emojify browse-at-remote plantuml-mode magit-gh-pulls keychain-environment slim-mode golden-ratio exec-path-from-shell markdown-mode 0blayout flymake-eslint flymake-jslint eglot egot indium ac-slime slime dmenu exwm scala-mode pomidor sudo-ext vagrant-tramp org-gcal org-journal feature-mode calfw calfw-org calfw-ical calfw-cal auto-complete switch-window evil use-package auto-compile)))
