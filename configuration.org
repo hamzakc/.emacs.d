@@ -463,7 +463,7 @@ easier-to-type =C-c C-v= and =C-c v= to useful searches.
 
 #+BEGIN_SRC emacs-lisp
 ;; set the PATH properly
-  (let* ((path (shell-command-to-string "/bin/bash -c 'source ~/.bash_profile && printf $PATH'")))
+  (let* ((path (shell-command-to-string "/bin/bash -c 'source ~/.bashrc && printf $PATH'")))
     (setenv "PATH" path)
     (mapc (lambda (p)
 	    (add-to-list 'exec-path p))
@@ -535,7 +535,7 @@ Allow git commit messages to use the current emacs instance.
     (setq magit-push-always-verify nil)
     (setq git-commit-summary-max-length 50)
     (add-hook 'git-commit-mode-hook 'turn-on-flyspell)
-    (add-hook 'with-editor-mode-hook 'evil-insert-state)
+    (add-hook 'with-editor-mode-hook 'evil-insert-state))
 #+END_SRC
 
 #+BEGIN_SRC emacs-lisp
